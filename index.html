@@ -687,8 +687,13 @@
 
   <script>
     /* Atlantis-specific storage key */
-    const STORAGE_KEY = 'laberintoAtlantisPlayed';
-
+    const STORAGE_KEY = 'laberintoAtlantisLastPlay'; // 🟢 ahora guarda la fecha del último juego
+  
+    // 🟢 helper: devuelve la fecha "YYYY-MM-DD"
+    function getTodayKey() {
+      return new Date().toISOString().slice(0, 10);
+    }
+  
     /* Preloader */
     window.addEventListener('load', function() {
       let p = 0;
@@ -703,10 +708,10 @@
         document.getElementById('progressText').textContent = Math.floor(p) + '%';
       }, 100);
     });
-
+  
     const canvas = document.getElementById('mazeCanvas');
     const ctx = canvas.getContext('2d');
-
+  
     const CELL_SIZE = 30;
     const MAZE_SIZE = 15;
     /* Atlantis maze colors: teal walls with aqua borders */
@@ -715,11 +720,11 @@
     const PATH_COLOR = '#051D21';
     const PLAYER_COLOR = '#34FFD9';
     const PRIZE_COLOR = '#1CE3C4';
-
+  
     let player = { x: 1, y: 1 };
     let prize = { x: 13, y: 8 };
     let gameWon = false;
-
+  
     const maze = [
       [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
       [1,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
@@ -737,7 +742,7 @@
       [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
       [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
     ];
-
+  
     function drawMaze() {
       for (let y = 0; y < MAZE_SIZE; y++) {
         for (let x = 0; x < MAZE_SIZE; x++) {
@@ -754,7 +759,7 @@
         }
       }
     }
-
+  
     function drawPlayer() {
       ctx.fillStyle = PLAYER_COLOR;
       /* Atlantis glow color */
@@ -771,7 +776,7 @@
       ctx.fill();
       ctx.shadowBlur = 0;
     }
-
+  
     function drawPrize() {
       const centerX = prize.x * CELL_SIZE + CELL_SIZE / 2;
       const centerY = prize.y * CELL_SIZE + CELL_SIZE / 2;
@@ -787,43 +792,45 @@
       ctx.fillText('🏆', centerX, centerY);
       ctx.restore();
     }
-
+  
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawMaze();
       drawPrize();
       drawPlayer();
     }
-
+  
+    // 🟢 ahora marcamos la fecha de hoy
     function markAsPlayed() {
-      localStorage.setItem(STORAGE_KEY, 'true');
+      const today = getTodayKey();
+      localStorage.setItem(STORAGE_KEY, today);
       gameWon = true;
     }
-
+  
     function movePlayer(dx, dy) {
       if (gameWon) return;
-
+  
       const newX = player.x + dx;
       const newY = player.y + dy;
-
+  
       if (newX >= 0 && newX < MAZE_SIZE && newY >= 0 && newY < MAZE_SIZE && maze[newY][newX] === 0) {
         player.x = newX;
         player.y = newY;
-
+  
         if (player.x === prize.x && player.y === prize.y) {
           markAsPlayed();
           showWinModal();
         }
-
+  
         draw();
       }
     }
-
+  
     function showWinModal() {
       lanzarConfetti();
       document.getElementById('resultModal').classList.add('show');
     }
-
+  
     function lanzarConfetti() {
       const confettiLayer = document.getElementById('confetti');
       confettiLayer.innerHTML = '';
@@ -841,23 +848,23 @@
         const tsway = (Math.random() * 1.5 + 1.6) + 's';
         const tspin = (Math.random() * 1.2 + 1) + 's';
         const delay = (Math.random() * 0.7) + 's';
-
+  
         c.style.setProperty('--x', x);
         c.style.setProperty('--amp', amp);
         c.style.setProperty('--t', t);
         c.style.setProperty('--tsway', tsway);
         c.style.setProperty('--tspin', tspin);
         c.style.setProperty('--delay', delay);
-
+  
         c.style.width = size + 'px';
         c.style.height = size + 'px';
         c.style.background = colors[Math.floor(Math.random() * colors.length)];
-
+  
         confettiLayer.appendChild(c);
         setTimeout(() => c.remove(), 6000);
       }
     }
-
+  
     // Keyboard controls
     document.addEventListener('keydown', (e) => {
       switch(e.key) {
@@ -883,29 +890,30 @@
           break;
       }
     });
-
+  
     // Touch controls
     document.getElementById('btnUp').addEventListener('click', () => movePlayer(0, -1));
     document.getElementById('btnDown').addEventListener('click', () => movePlayer(0, 1));
     document.getElementById('btnLeft').addEventListener('click', () => movePlayer(-1, 0));
     document.getElementById('btnRight').addEventListener('click', () => movePlayer(1, 0));
-
+  
     document.getElementById('closeModal').addEventListener('click', () => {
       document.getElementById('resultModal').classList.remove('show');
       showSuccessMessage();
     });
-
+  
     document.getElementById('claimBtn').addEventListener('click', () => {
       document.getElementById('resultModal').classList.remove('show');
       showSuccessMessage();
     });
-
+  
     function showSuccessMessage() {
+      // vuelve a marcar la fecha (por si no se había marcado aún)
       markAsPlayed();
       const successMsg = document.getElementById('successMessage');
       successMsg.style.display = 'block';
     }
-
+  
     window.addEventListener('click', (e) => {
       const modal = document.getElementById('resultModal');
       if (e.target === modal) {
@@ -913,21 +921,27 @@
         showSuccessMessage();
       }
     });
-
+  
     function initGame() {
-      const alreadyPlayed = localStorage.getItem(STORAGE_KEY) === 'true';
-
-      if (alreadyPlayed) {
+      const lastPlay = localStorage.getItem(STORAGE_KEY);
+      const today = getTodayKey();
+      const alreadyPlayedToday = lastPlay === today;   // 🟢 comparación por fecha
+  
+      if (alreadyPlayedToday) {
+        // Ya jugó hoy → aparece como ganado y se muestra el mensaje
         gameWon = true;
         player.x = prize.x;
         player.y = prize.y;
         draw();
         setTimeout(showSuccessMessage, 200);
       } else {
+        // No jugó hoy → juego nuevo
+        gameWon = false;
+        player = { x: 1, y: 1 };
         draw();
       }
     }
-
+  
     initGame();
   </script>
 </body>
